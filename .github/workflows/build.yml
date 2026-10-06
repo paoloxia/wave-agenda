@@ -1,0 +1,29 @@
+name: build
+# Only schedule / manual / push on main: no pull_request trigger, so forks never get the secret.
+on:
+  schedule: [{cron: "*/15 * * * *"}]
+  workflow_dispatch:
+  push: {branches: [main]}
+permissions: {contents: read}
+concurrency: {group: pages, cancel-in-progress: true}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python build.py
+        env:
+          SESSIONBOARD_TOKEN: ${{ secrets.SESSIONBOARD_TOKEN }}
+      - uses: actions/upload-pages-artifact@v3
+        with: {path: site}
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions: {pages: write, id-token: write}
+    environment: {name: github-pages, url: "${{ steps.d.outputs.page_url }}"}
+    steps:
+      - id: d
+        uses: actions/deploy-pages@v4
