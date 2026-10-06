@@ -3,7 +3,8 @@
 Sections: Fucine, Binario 3, Masterclass (track Masterclass, Rooms A/B/C), Podcast (track Podcast).
 Output: site/index.html (public, the agenda is public anyway). The token only lives in the GitHub Actions secret.
 Runs every 15 min on GitHub Actions; locally: SESSIONBOARD_TOKEN=... python3 build.py"""
-import html, json, os, urllib.request
+import hashlib, html, io, json, os, urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -34,10 +35,28 @@ def section(s):
     return room if room in ("Fucine", "Binario 3") else None
 
 
+THUMBS = {}
+
+
+def thumb(url):
+    """Headshot (already B/W on Sessionboard) -> 240px square jpg, face kept near the top."""
+    from PIL import Image, ImageOps
+    try:
+        im = Image.open(io.BytesIO(urllib.request.urlopen(url, timeout=30).read())).convert("L")
+    except Exception:
+        return url, None
+    name = "h/" + hashlib.sha1(url.encode()).hexdigest()[:16] + ".jpg"
+    ImageOps.fit(im, (240, 240), centering=(0.5, 0.3)).save(Path("site") / name, quality=82)
+    return url, name
+
+
 def person(p, mod=False):
     role = ", ".join(x.strip() for x in (p.get("title"), p.get("company_name")) if x and x.strip())
+    name = html.escape(" ".join(p["full_name"].split()))
+    img = f'<img src="{THUMBS[p["photo_url"]]}" alt="" loading="lazy">' if THUMBS.get(p.get("photo_url")) \
+        else f'<span class="ph">{name[:1]}</span>'
     lab = '<span class="ml">Moderatore</span>' if mod else ""
-    return f'<li{" class=mod" if mod else ""}>{lab}<b>{html.escape(" ".join(p["full_name"].split()))}</b>' \
+    return f'<li{" class=mod" if mod else ""}>{img}{lab}<b>{name}</b>' \
         + (f'<span class="r">{html.escape(role)}</span>' if role else "") + "</li>"
 
 
@@ -105,13 +124,16 @@ h3{{margin:0;font-size:18px;line-height:1.3;font-weight:650}}
 .m{{margin:4px 0 0;color:var(--mut);font-size:14px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}}
 .pend{{font-size:12px;font-weight:600;color:#8a5a00;background:#fff1cc;padding:2px 8px;border-radius:6px}}
 .live{{display:none;font-size:12px;font-weight:700;color:#fff;background:var(--live);padding:2px 8px;border-radius:6px}}
-ul{{list-style:none;margin:12px 0 0;padding:12px 0 0;border-top:1px solid var(--line);display:grid;gap:6px}}
-li b{{font-weight:600;margin-right:8px}}li .r{{color:var(--mut);font-size:15px}}
-li.mod{{margin-top:2px}}.ml{{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:0 6px;margin-right:8px;vertical-align:1px}}
+ul{{list-style:none;margin:14px 0 0;padding:14px 0 0;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:16px 12px}}
+li{{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}}
+li img,li .ph{{width:84px;height:84px;border-radius:12px;object-fit:cover;object-position:50% 30%;background:var(--line);margin-bottom:6px;filter:grayscale(1)}}
+li .ph{{display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--mut)}}
+li b{{font-weight:600;font-size:15px;line-height:1.25}}li .r{{color:var(--mut);font-size:13px;line-height:1.3}}
+.ml{{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:0 6px;margin-bottom:2px}}
 .s.now{{border-color:var(--live);box-shadow:0 0 0 1px var(--live)}}.s.now .live{{display:inline-block}}
 .s.past{{opacity:.5}}.h{{display:none!important}}
 .empty{{display:none;color:var(--mut);padding:24px 0}}
-@media (max-width:600px){{.s{{grid-template-columns:1fr;gap:6px;padding:14px}}.t b{{display:inline;font-size:17px;margin-right:6px}}h3{{font-size:17px}}.bar{{padding:10px 16px;gap:8px}}h1{{display:none}}nav{{flex:1}}nav button{{flex:1}}li .r{{display:block}}}}
+@media (max-width:600px){{.s{{grid-template-columns:1fr;gap:6px;padding:14px}}.t b{{display:inline;font-size:17px;margin-right:6px}}h3{{font-size:17px}}.bar{{padding:10px 16px;gap:8px}}h1{{display:none}}nav{{flex:1}}nav button{{flex:1}}ul{{grid-template-columns:repeat(2,1fr)}}li img,li .ph{{width:72px;height:72px}}}}
 @media (prefers-reduced-motion:reduce){{*{{transition:none!important}}}}
 </style></head><body>
 <header><div class="bar"><h1>Wave 2026 <span>Agenda</span></h1><nav>{"".join(tabs)}</nav>
@@ -135,5 +157,10 @@ setTimeout(()=>location.reload(),15*60*1000);
 if __name__ == "__main__":
     out = Path("site")
     out.mkdir(exist_ok=True)
-    (out / "index.html").write_text(page(sessions()))
+    (out / "h").mkdir(exist_ok=True)
+    data = sessions()
+    urls = {p["photo_url"] for x in data for p in x["speakers"] + x["moderators"] + x.get("participants", []) if p.get("photo_url")}
+    with ThreadPoolExecutor(16) as ex:
+        THUMBS.update((u, n) for u, n in ex.map(thumb, urls) if n)
+    (out / "index.html").write_text(page(data))
     (out / ".nojekyll").touch()
