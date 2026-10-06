@@ -1,7 +1,8 @@
 name: build
 # Only schedule / manual / push on main: no pull_request trigger, so forks never get the secret.
 on:
-  schedule: [{cron: "*/15 * * * *"}]
+  schedule:
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
   push: {branches: [main]}
 permissions: {contents: read}
