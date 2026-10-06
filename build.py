@@ -3,7 +3,7 @@
 Sections: Fucine, Binario 3, Masterclass (track Masterclass, Rooms A/B/C), Podcast (track Podcast).
 Output: site/index.html (public, the agenda is public anyway). The token only lives in the GitHub Actions secret.
 Runs every 15 min on GitHub Actions; locally: SESSIONBOARD_TOKEN=... python3 build.py"""
-import hashlib, html, io, json, os, urllib.request
+import base64, hashlib, html, io, json, os, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -36,6 +36,16 @@ def section(s):
 
 
 THUMBS = {}
+DISPLAY = json.load(open(Path(__file__).with_name("display.json")))
+LOGO = "data:image/svg+xml;base64," + base64.b64encode(Path(__file__).with_name("logo-wave.svg").read_bytes()).decode()
+
+
+def display(word, cls):
+    """PP Rader Light as vector paths (the licensed TTF is never published)."""
+    g = DISPLAY.get(word.upper())
+    if not g:
+        return f'<span class="{cls} fb">{html.escape(word)}</span>'
+    return f'<svg class="{cls}" viewBox="{g["vb"]}" role="img" aria-label="{html.escape(word)}"><path d="{g["d"]}"/></svg>'
 
 
 def thumb(url):
@@ -89,54 +99,51 @@ def page(data):
             if rows:
                 sid = f"d{i}-{k}"
                 jump.append(f'<a href="#{sid}">{name}</a>')
-                secs.append(f'''<div class="room r{k}" id="{sid}"><h2>{name}<small>{len(rows)} sessioni</small></h2>
+                secs.append(f'''<div class="room r{k}" id="{sid}"><h2>{display(name, "dt")}<small>{len(rows)} sessioni</small></h2>
 {"".join(r for _, r in rows)}</div>''')
         panes.append(f'<section data-d="{i}"{"" if i == 0 else " hidden"}><div class="jump">{"".join(jump)}</div>{"".join(secs)}</section>')
     return f'''<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex"><title>Wave 2026 Agenda</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{{--bg:#f6f6f4;--fg:#121212;--mut:#545454;--line:#e2e2de;--card:#fff;--acc:#6a1fe0;--live:#d4145a;
---r0:#6a1fe0;--r1:#0b7a6b;--r2:#c25a00;--r3:#c0177a}}
-@media (prefers-color-scheme:dark){{:root{{--bg:#0f0f10;--fg:#f4f4f4;--mut:#b0b0b0;--line:#2b2b2e;--card:#18181b;--acc:#b08cff;--live:#ff5c93;
---r0:#b08cff;--r1:#4fd1bd;--r2:#ffab5c;--r3:#ff7ac6}}}}
+:root{{--bg:#111111;--fg:#FBFBFB;--mut:#A8A8A8;--line:rgba(251,251,251,.14);--card:#111111;--acc:#DA34FF;--live:#DA34FF;color-scheme:dark}}
 *{{box-sizing:border-box}}html{{scroll-padding-top:130px}}
 body{{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 "Funnel Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}}
 header{{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}}
 .bar{{max-width:960px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}}
-h1{{font-size:20px;margin:0;font-weight:700;letter-spacing:-.01em}}h1 span{{color:var(--mut);font-weight:500}}
-nav{{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:3px}}
-nav button{{font:inherit;font-weight:600;font-size:15px;min-height:40px;padding:0 16px;border:0;background:none;color:var(--fg);border-radius:9px;cursor:pointer;transition:background .15s}}
-nav button.on{{background:var(--acc);color:#fff}}
-input{{font:inherit;min-height:42px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);flex:1 1 200px}}
+h1{{display:flex;align-items:center;gap:14px;margin:0}}h1 .logo{{height:30px;width:auto}}h1 .at{{height:15px;width:auto;fill:var(--mut)}}
+nav{{display:flex;border:1px solid var(--line);border-radius:4px;padding:3px}}
+nav button{{font:inherit;font-weight:600;font-size:15px;min-height:40px;padding:0 16px;border:0;background:none;color:var(--fg);border-radius:2px;cursor:pointer;transition:background .15s}}
+nav button.on{{background:var(--fg);color:var(--bg)}}nav button.on::after{{content:"";display:block;height:2px;background:var(--acc);margin:-3px 6px 0}}
+input{{font:inherit;min-height:42px;padding:0 14px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--fg);flex:1 1 200px}}
 .upd{{color:var(--mut);font-size:13px;margin:14px 0 0}}
 :focus-visible{{outline:2px solid var(--acc);outline-offset:2px}}
 main{{max-width:960px;margin:0 auto;padding:8px 16px 64px}}
 .jump{{display:flex;gap:8px;overflow-x:auto;margin:12px 0 4px;scrollbar-width:none}}.jump::-webkit-scrollbar{{display:none}}
-.jump a{{white-space:nowrap;font-size:14px;font-weight:600;color:var(--fg);text-decoration:none;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--card)}}
-.room{{--rc:var(--r0);margin-top:28px}}.r1{{--rc:var(--r1)}}.r2{{--rc:var(--r2)}}.r3{{--rc:var(--r3)}}
-h2{{display:flex;align-items:baseline;gap:10px;margin:0 0 12px;font-size:24px;letter-spacing:-.01em}}
-h2::before{{content:"";width:10px;height:10px;border-radius:3px;background:var(--rc);align-self:center}}
+.jump a{{white-space:nowrap;font-size:14px;font-weight:600;color:var(--fg);text-decoration:none;padding:8px 14px;border:1px solid var(--line);border-radius:4px;background:transparent}}
+.room{{margin-top:40px}}
+h2{{display:flex;align-items:flex-end;gap:10px;margin:0 0 12px;font-size:24px;letter-spacing:-.01em}}
+h2 .dt{{height:30px;width:auto;fill:var(--fg)}}h2 .fb{{font-size:28px;font-weight:300;text-transform:uppercase}}
 h2 small{{font-size:14px;font-weight:500;color:var(--mut)}}
-.s{{display:grid;grid-template-columns:76px 1fr;gap:16px;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--rc);border-radius:12px;padding:16px;margin-bottom:10px}}
-.t b{{display:block;font-size:20px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}}.t span{{color:var(--mut);font-size:14px;font-variant-numeric:tabular-nums}}
+.s{{display:grid;grid-template-columns:76px 1fr;gap:16px;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:16px;margin-bottom:10px}}
+.t b{{display:block;font-size:20px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.01em}}.t span{{color:var(--mut);font-size:14px;font-variant-numeric:tabular-nums}}
 h3{{margin:0;font-size:18px;line-height:1.3;font-weight:650}}
 .m{{margin:4px 0 0;color:var(--mut);font-size:14px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}}
-.pend{{font-size:12px;font-weight:600;color:#8a5a00;background:#fff1cc;padding:2px 8px;border-radius:6px}}
-.live{{display:none;font-size:12px;font-weight:700;color:#fff;background:var(--live);padding:2px 8px;border-radius:6px}}
+.pend{{font-size:12px;font-weight:600;color:var(--fg);border:1px solid var(--mut);padding:1px 8px;border-radius:4px}}
+.live{{display:none;font-size:12px;font-weight:700;color:var(--acc);border:1px solid var(--acc);padding:1px 8px;border-radius:4px}}
 ul{{list-style:none;margin:14px 0 0;padding:14px 0 0;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:16px 12px}}
 li{{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}}
-li img,li .ph{{width:84px;height:84px;border-radius:12px;object-fit:cover;object-position:50% 30%;background:var(--line);margin-bottom:6px;filter:grayscale(1)}}
+li img,li .ph{{width:84px;height:84px;border-radius:4px;object-fit:cover;object-position:50% 30%;background:var(--line);margin-bottom:6px;filter:grayscale(1)}}
 li .ph{{display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--mut)}}
 li b{{font-weight:600;font-size:15px;line-height:1.25}}li .r{{color:var(--mut);font-size:13px;line-height:1.3}}
-.ml{{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:0 6px;margin-bottom:2px}}
+.ml{{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);border:1px solid var(--line);border-radius:4px;padding:0 6px;margin-bottom:2px}}
 .s.now{{border-color:var(--live);box-shadow:0 0 0 1px var(--live)}}.s.now .live{{display:inline-block}}
 .s.past{{opacity:.5}}.h{{display:none!important}}
 .empty{{display:none;color:var(--mut);padding:24px 0}}
-@media (max-width:600px){{.s{{grid-template-columns:1fr;gap:6px;padding:14px}}.t b{{display:inline;font-size:17px;margin-right:6px}}h3{{font-size:17px}}.bar{{padding:10px 16px;gap:8px}}h1{{display:none}}nav{{flex:1}}nav button{{flex:1}}ul{{grid-template-columns:repeat(2,1fr)}}li img,li .ph{{width:72px;height:72px}}}}
+@media (max-width:600px){{.s{{grid-template-columns:1fr;gap:6px;padding:14px}}.t b{{display:inline;font-size:17px;margin-right:6px}}h3{{font-size:17px}}.bar{{padding:10px 16px;gap:8px}}h1{{width:100%}}h1 .logo{{height:24px}}h1 .at{{height:12px}}nav{{flex:1}}nav button{{flex:1}}ul{{grid-template-columns:repeat(2,1fr)}}li img,li .ph{{width:72px;height:72px}}}}
 @media (prefers-reduced-motion:reduce){{*{{transition:none!important}}}}
 </style></head><body>
-<header><div class="bar"><h1>Wave 2026 <span>Agenda</span></h1><nav>{"".join(tabs)}</nav>
+<header><div class="bar"><h1><img class="logo" src="{LOGO}" alt="Wave by Vento">{display("Agenda", "at")}</h1><nav>{"".join(tabs)}</nav>
 <input id="q" type="search" aria-label="Cerca" placeholder="Cerca titolo o speaker"></div></header>
 <main><p class="upd">Dati Sessionboard, aggiornati alle {now:%H:%M} del {now:%d/%m}. La pagina si ricarica da sola.</p>{"".join(panes)}<p class="empty" id="none">Nessun risultato.</p></main>
 <script>
