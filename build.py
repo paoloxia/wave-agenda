@@ -12,6 +12,8 @@ BASE, EVENT = "https://public-api-eu.sessionboard.com", 273
 CEST = timezone(timedelta(hours=2))
 DAYS = [("2026-10-07", "7 OTT"), ("2026-10-08", "8 OTT"), ("2026-10-09", "9 OTT")]
 SECTIONS = ["Fucine", "Binario 3", "Masterclass", "Podcast"]
+# Desktop columns side by side: Masterclass + Podcast share the third column, split in two.
+COLS = [["Fucine"], ["Binario 3"], ["Masterclass", "Podcast"]]
 
 
 def sessions():
@@ -66,8 +68,8 @@ def person(p, mod=False):
     img = f'<img src="{THUMBS[p["photo_url"]]}" alt="" loading="lazy">' if THUMBS.get(p.get("photo_url")) \
         else f'<span class="ph">{name[:1]}</span>'
     lab = '<span class="ml">Moderatore</span>' if mod else ""
-    return f'<li{" class=mod" if mod else ""}>{img}{lab}<b>{name}</b>' \
-        + (f'<span class="r">{html.escape(role)}</span>' if role else "") + "</li>"
+    return f'<li{" class=mod" if mod else ""}>{img}<div>{lab}<b>{name}</b>' \
+        + (f'<span class="r">{html.escape(role)}</span>' if role else "") + "</div></li>"
 
 
 def row(s):
@@ -93,15 +95,20 @@ def page(data):
     tabs, panes = [], []
     for i, (day, label) in enumerate(DAYS):
         tabs.append(f'<button data-d="{i}" data-day="{day}"{" class=on" if i == 0 else ""}>{label}</button>')
-        secs, jump = [], []
-        for k, name in enumerate(SECTIONS):
-            rows = sorted((row(s) for s in data if s["starts_at"][:10] == day and section(s) == name and s["status"] != "accept_queue"), key=lambda x: x[0])
-            if rows:
-                sid = f"d{i}-{k}"
-                jump.append(f'<a href="#{sid}">{name}</a>')
-                secs.append(f'''<div class="room r{k}" id="{sid}"><h2>{display(name, "dt")}<small>{len(rows)} sessioni</small></h2>
+        cols, jump = [], []
+        for group in COLS:
+            secs = []
+            for name in group:
+                k = SECTIONS.index(name)
+                rows = sorted((row(s) for s in data if s["starts_at"][:10] == day and section(s) == name and s["status"] != "accept_queue"), key=lambda x: x[0])
+                if rows:
+                    sid = f"d{i}-{k}"
+                    jump.append(f'<a href="#{sid}">{name}</a>')
+                    secs.append(f'''<div class="room r{k}" id="{sid}"><h2>{display(name, "dt")}<small>{len(rows)} sessioni</small></h2>
 {"".join(r for _, r in rows)}</div>''')
-        panes.append(f'<section data-d="{i}"{"" if i == 0 else " hidden"}><div class="jump">{"".join(jump)}</div>{"".join(secs)}</section>')
+            if secs:
+                cols.append(f'<div class="grp g{len(secs)}">{"".join(secs)}</div>' if len(group) > 1 else secs[0])
+        panes.append(f'<section data-d="{i}"{"" if i == 0 else " hidden"}><div class="jump">{"".join(jump)}</div><div class="cols">{"".join(cols)}</div></section>')
     return f'''<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex"><title>Wave 2026 Agenda</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -110,7 +117,7 @@ def page(data):
 *{{box-sizing:border-box}}html{{scroll-padding-top:130px}}
 body{{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 "Funnel Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}}
 header{{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}}
-.bar{{max-width:960px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}}
+.bar{{max-width:1440px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}}
 h1{{display:flex;align-items:center;gap:14px;margin:0}}h1 .logo{{height:30px;width:auto}}h1 .at{{height:15px;width:auto;fill:var(--mut)}}
 nav{{display:flex;border:1px solid var(--line);border-radius:4px;padding:3px}}
 nav button{{font:inherit;font-weight:600;font-size:15px;min-height:40px;padding:0 16px;border:0;background:none;color:var(--fg);border-radius:2px;cursor:pointer;transition:background .15s}}
@@ -118,29 +125,34 @@ nav button.on{{background:var(--fg);color:var(--bg)}}nav button.on::after{{conte
 input{{font:inherit;min-height:42px;padding:0 14px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--fg);flex:1 1 200px}}
 .upd{{color:var(--mut);font-size:13px;margin:14px 0 0}}
 :focus-visible{{outline:2px solid var(--acc);outline-offset:2px}}
-main{{max-width:960px;margin:0 auto;padding:8px 16px 64px}}
+main{{max-width:1440px;margin:0 auto;padding:8px 16px 64px}}
 .jump{{display:flex;gap:8px;overflow-x:auto;margin:12px 0 4px;scrollbar-width:none}}.jump::-webkit-scrollbar{{display:none}}
 .jump a{{white-space:nowrap;font-size:14px;font-weight:600;color:var(--fg);text-decoration:none;padding:8px 14px;border:1px solid var(--line);border-radius:4px;background:transparent}}
 .room{{margin-top:40px}}
-h2{{display:flex;align-items:flex-end;gap:10px;margin:0 0 12px;font-size:24px;letter-spacing:-.01em}}
-h2 .dt{{height:30px;width:auto;fill:var(--fg)}}h2 .fb{{font-size:28px;font-weight:300;text-transform:uppercase}}
-h2 small{{font-size:14px;font-weight:500;color:var(--mut)}}
-.s{{display:grid;grid-template-columns:76px 1fr;gap:16px;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:16px;margin-bottom:10px}}
-.t b{{display:block;font-size:20px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.01em}}.t span{{color:var(--mut);font-size:14px;font-variant-numeric:tabular-nums}}
-h3{{margin:0;font-size:18px;line-height:1.3;font-weight:650}}
+h2{{display:flex;align-items:flex-end;gap:10px;margin:0 0 12px;font-size:24px;letter-spacing:-.01em;position:sticky;top:var(--hh,64px);z-index:2;background:var(--bg);padding:10px 0}}
+h2 .dt{{height:26px;width:auto;fill:var(--fg)}}h2 .fb{{font-size:28px;font-weight:300;text-transform:uppercase}}
+h2 small{{white-space:nowrap;font-size:14px;font-weight:500;color:var(--mut)}}
+.s{{display:grid;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:14px;margin-bottom:10px}}
+.t b{{display:inline;margin-right:6px;font-size:17px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.01em}}.t span{{color:var(--mut);font-size:14px;font-variant-numeric:tabular-nums}}
+h3{{margin:0;font-size:17px;line-height:1.3;font-weight:650}}
 .m{{margin:4px 0 0;color:var(--mut);font-size:14px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}}
 .pend{{font-size:12px;font-weight:600;color:var(--fg);border:1px solid var(--mut);padding:1px 8px;border-radius:4px}}
 .live{{display:none;font-size:12px;font-weight:700;color:var(--acc);border:1px solid var(--acc);padding:1px 8px;border-radius:4px}}
-ul{{list-style:none;margin:14px 0 0;padding:14px 0 0;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:16px 12px}}
-li{{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}}
-li img,li .ph{{width:84px;height:84px;border-radius:4px;object-fit:cover;object-position:50% 30%;background:var(--line);margin-bottom:6px;filter:grayscale(1)}}
-li .ph{{display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--mut)}}
+ul{{list-style:none;margin:8px 0 0;padding:12px 0 0;border-top:1px solid var(--line);display:grid;gap:10px}}
+li{{display:flex;align-items:center;gap:10px;min-width:0}}li div{{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:0}}
+li img,li .ph{{flex:none;width:48px;height:48px;border-radius:4px;object-fit:cover;object-position:50% 30%;background:var(--line);filter:grayscale(1)}}
+li .ph{{display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--mut)}}
 li b{{font-weight:600;font-size:15px;line-height:1.25}}li .r{{color:var(--mut);font-size:13px;line-height:1.3}}
 .ml{{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);border:1px solid var(--line);border-radius:4px;padding:0 6px;margin-bottom:2px}}
 .s.now{{border-color:var(--live);box-shadow:0 0 0 1px var(--live)}}.s.now .live{{display:inline-block}}
 .s.past{{opacity:.5}}.h{{display:none!important}}
 .empty{{display:none;color:var(--mut);padding:24px 0}}
-@media (max-width:600px){{.s{{grid-template-columns:1fr;gap:6px;padding:14px}}.t b{{display:inline;font-size:17px;margin-right:6px}}h3{{font-size:17px}}.bar{{padding:10px 16px;gap:8px}}h1{{width:100%}}h1 .logo{{height:24px}}h1 .at{{height:12px}}nav{{flex:1}}nav button{{flex:1}}ul{{grid-template-columns:repeat(2,1fr)}}li img,li .ph{{width:72px;height:72px}}}}
+.fold{{font:inherit;font-size:13px;font-weight:600;width:100%;min-height:40px;margin:0 0 10px;border:1px dashed var(--line);border-radius:4px;background:none;color:var(--mut);cursor:pointer}}
+body:not(.q) .room.shut .s.past{{display:none}}body.q .fold{{display:none}}
+@media (min-width:1000px){{.jump{{display:none}}.cols{{display:grid;grid-template-columns:1fr 1fr 1.7fr;gap:20px;align-items:start;margin-top:12px}}
+.cols>*+*{{border-left:1px solid var(--line);padding-left:20px}}.room{{margin-top:0}}
+.grp{{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}}.grp.g1{{grid-template-columns:1fr}}.grp h2 .dt{{height:22px}}}}
+@media (max-width:600px){{.bar{{padding:10px 16px;gap:8px}}h1{{width:100%}}h1 .logo{{height:24px}}h1 .at{{height:12px}}nav{{flex:1}}nav button{{flex:1}}}}
 @media (prefers-reduced-motion:reduce){{*{{transition:none!important}}}}
 </style></head><body>
 <header><div class="bar"><h1><img class="logo" src="{LOGO}" alt="Wave by Vento">{display("Agenda", "at")}</h1><nav>{"".join(tabs)}</nav>
@@ -152,9 +164,16 @@ function show(i){{B.forEach(b=>b.classList.toggle("on",b.dataset.d==i));S.forEac
 B.forEach(b=>b.onclick=()=>show(b.dataset.d));
 const today=new Date().toLocaleDateString("sv-SE",{{timeZone:"Europe/Rome"}}),td=B.find(b=>b.dataset.day==today);
 if(td)show(td.dataset.d);else try{{const d=localStorage.getItem("wa-day");if(d)show(d)}}catch(e){{}}
-function tick(){{const n=Date.now()/1000;document.querySelectorAll(".s").forEach(a=>{{a.classList.toggle("now",n>=a.dataset.s&&n<a.dataset.e);a.classList.toggle("past",n>=a.dataset.e)}})}}
+const H=document.querySelector("header"),hh=()=>document.documentElement.style.setProperty("--hh",H.offsetHeight+"px");hh();addEventListener("resize",hh);
+// Past sessions folded per column, so the page opens on what is live / next in every room.
+document.querySelectorAll(".room").forEach(r=>{{const b=document.createElement("button");b.className="fold";b.hidden=true;r.querySelector("h2").after(b);r.classList.add("shut");
+b.onclick=()=>{{r.classList.toggle("shut");lab(r)}}}});
+function lab(r){{const k=r.querySelectorAll(".s.past").length,b=r.querySelector(".fold");b.hidden=!k;b.textContent=r.classList.contains("shut")?`Mostra ${{k}} ${{k==1?"sessione conclusa":"sessioni concluse"}}`:"Nascondi sessioni concluse"}}
+function tick(){{const n=Date.now()/1000;document.querySelectorAll(".s").forEach(a=>{{a.classList.toggle("now",n>=a.dataset.s&&n<a.dataset.e);a.classList.toggle("past",n>=a.dataset.e)}});document.querySelectorAll(".room").forEach(lab)}}
 tick();setInterval(tick,60000);
-document.getElementById("q").oninput=e=>{{const q=e.target.value.trim().toLowerCase();let any=false;
+// Today already over (evening): open on the next day instead of a wall of folded rooms.
+if(td&&!S[td.dataset.d].querySelector(".s:not(.past)")&&B[+td.dataset.d+1])show(+td.dataset.d+1);
+document.getElementById("q").oninput=e=>{{const q=e.target.value.trim().toLowerCase();let any=false;document.body.classList.toggle("q",!!q);
 document.querySelectorAll(".room").forEach(r=>{{let k=0;r.querySelectorAll(".s").forEach(a=>{{const h=q&&!a.textContent.toLowerCase().includes(q);a.classList.toggle("h",h);if(!h)k++}});r.classList.toggle("h",!k);if(k&&!r.closest("section").hidden)any=true}});
 document.querySelectorAll(".jump").forEach(j=>j.classList.toggle("h",!!q));document.getElementById("none").style.display=any?"none":"block"}};
 setTimeout(()=>location.reload(),15*60*1000);
