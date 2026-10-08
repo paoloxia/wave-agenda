@@ -10,7 +10,7 @@ from pathlib import Path
 
 BASE, EVENT = "https://public-api-eu.sessionboard.com", 273
 CEST = timezone(timedelta(hours=2))
-DAYS = [("2026-10-07", "Mer 7"), ("2026-10-08", "Gio 8"), ("2026-10-09", "Ven 9")]
+DAYS = [("2026-10-07", "Wed 7"), ("2026-10-08", "Thu 8"), ("2026-10-09", "Fri 9")]
 SECTIONS = ["Fucine", "Binario 3", "Masterclass", "Podcast"]
 # Desktop columns side by side: Masterclass + Podcast share the third column, split in two.
 COLS = [["Fucine"], ["Binario 3"], ["Masterclass", "Podcast"]]
@@ -67,7 +67,7 @@ def person(p, mod=False):
     name = html.escape(" ".join(p["full_name"].split()))
     img = f'<img src="{THUMBS[p["photo_url"]]}" alt="" loading="lazy">' if THUMBS.get(p.get("photo_url")) \
         else f'<span class="ph">{name[:1]}</span>'
-    lab = '<span class="ml">Moderatore</span>' if mod else ""
+    lab = '<span class="ml">Moderator</span>' if mod else ""
     return f'<li{" class=mod" if mod else ""}>{img}<div>{lab}<b>{name}</b>' \
         + (f'<span class="co">{html.escape(co)}</span>' if co else "") \
         + (f'<span class="r">{html.escape(role)}</span>' if role else "") + "</div></li>"
@@ -84,10 +84,10 @@ def row(s):
     if section(s) in ("Masterclass", "Podcast"):
         meta.append((s.get("room") or {}).get("name") or "")
     meta = " · ".join(html.escape(m) for m in meta if m)
-    pend = '<span class="pend">Da confermare</span>' if s["status"] != "accepted" else ""
+    pend = '<span class="pend">To be confirmed</span>' if s["status"] != "accepted" else ""
     return t0, f'''<article class="s" data-s="{int(t0.timestamp())}" data-e="{int(t1.timestamp())}">
 <div class="t"><b>{t0:%H:%M}</b><span>– {t1:%H:%M}</span></div>
-<div class="c"><h3>{html.escape(" ".join(s["title"].split()))}</h3><p class="m">{meta}{pend}<span class="live">In corso</span></p>
+<div class="c"><h3>{html.escape(" ".join(s["title"].split()))}</h3><p class="m">{meta}{pend}<span class="live">Live now</span></p>
 {f'<ul>{who}</ul>' if who else ''}</div></article>'''
 
 
@@ -105,12 +105,12 @@ def page(data):
                 if rows:
                     sid = f"d{i}-{k}"
                     jump.append(f'<button data-r="{name}">{name}</button>')
-                    secs.append(f'''<div class="room r{k}" id="{sid}" data-r="{name}"><h2>{display(name, "dt")}<small>{len(rows)} sessioni</small></h2>
+                    secs.append(f'''<div class="room r{k}" id="{sid}" data-r="{name}"><h2>{display(name, "dt")}<small>{len(rows)} sessions</small></h2>
 {"".join(r for _, r in rows)}</div>''')
             if secs:
                 cols.append(f'<div class="grp g{len(secs)}">{"".join(secs)}</div>' if len(group) > 1 else secs[0])
         panes.append(f'<section data-d="{i}"{"" if i == 0 else " hidden"}><div class="now-box" hidden></div><div class="jump" role="tablist">{"".join(jump)}</div><div class="cols">{"".join(cols)}</div></section>')
-    return f'''<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex"><title>Wave 2026 Agenda</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -164,8 +164,8 @@ body:not(.q) .room.shut .s.past{{display:none}}body.q .fold,body.q .now-box{{dis
 .grp{{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}}.grp.g1{{grid-template-columns:1fr}}.grp h2 .dt{{height:22px}}}}
 @media (max-width:600px){{.jump button{{flex:1 1 auto;padding:0 10px;font-size:14px}}nav{{flex:1 1 100%}}nav button{{flex:1;padding:0 8px}}h1 .logo{{height:24px}}h1 .at{{height:12px}}}}
 </style></head><body>
-<header><div class="bar"><h1><img class="logo" src="{LOGO}" alt="Wave by Vento">{display("Agenda", "at")}</h1><p class="upd">Aggiornata alle {now:%H:%M}</p><nav aria-label="Giorno">{"".join(tabs)}</nav></div></header>
-<main><input id="q" type="search" aria-label="Cerca" placeholder="Cerca sessione, speaker o azienda">{"".join(panes)}<p class="empty" id="none">Nessun risultato.</p></main>
+<header><div class="bar"><h1><img class="logo" src="{LOGO}" alt="Wave by Vento">{display("Agenda", "at")}</h1><p class="upd">Updated {now:%H:%M}</p><nav aria-label="Day">{"".join(tabs)}</nav></div></header>
+<main><input id="q" type="search" aria-label="Search" placeholder="Search session, speaker or company">{"".join(panes)}<p class="empty" id="none">No results.</p></main>
 <script>
 const B=[...document.querySelectorAll("nav button")],S=[...document.querySelectorAll("main section")],H=document.querySelector("header");
 const get=k=>{{try{{return localStorage.getItem(k)}}catch(e){{}}}},put=(k,v)=>{{try{{localStorage.setItem(k,v)}}catch(e){{}}}};
@@ -181,15 +181,15 @@ const hh=()=>document.documentElement.style.setProperty("--hh",H.offsetHeight+"p
 // Past sessions folded per room, so the page opens on what is live / next.
 document.querySelectorAll(".room").forEach(r=>{{const b=document.createElement("button");b.className="fold";b.hidden=true;r.querySelector("h2").after(b);r.classList.add("shut");
 b.onclick=()=>{{r.classList.toggle("shut");lab(r)}}}});
-function lab(r){{const k=r.querySelectorAll(".s.past").length,b=r.querySelector(".fold");b.hidden=!k;b.textContent=r.classList.contains("shut")?`Mostra ${{k}} ${{k==1?"sessione conclusa":"sessioni concluse"}}`:"Nascondi sessioni concluse"}}
+function lab(r){{const k=r.querySelectorAll(".s.past").length,b=r.querySelector(".fold");b.hidden=!k;b.textContent=r.classList.contains("shut")?`Show ${{k}} past ${{k==1?"session":"sessions"}}`:"Hide past sessions"}}
 const today=new Date().toLocaleDateString("sv-SE",{{timeZone:"Europe/Rome"}}),td=B.find(b=>b.dataset.day==today);
-const hm=t=>new Date(t*1000).toLocaleTimeString("it-IT",{{timeZone:"Europe/Rome",hour:"2-digit",minute:"2-digit"}});
+const hm=t=>new Date(t*1000).toLocaleTimeString("en-GB",{{timeZone:"Europe/Rome",hour:"2-digit",minute:"2-digit"}});
 const el=(t,c,x)=>{{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}};
-// "Adesso nelle sale": what is on (or next) in every room, today only.
-function nowBox(){{if(!td)return;const sec=S[td.dataset.d],box=sec.querySelector(".now-box");const hd=el("h4","","Adesso nelle sale");box.replaceChildren(hd);
+// "Now in the rooms": what is on (or next) in every room, today only.
+function nowBox(){{if(!td)return;const sec=S[td.dataset.d],box=sec.querySelector(".now-box");const hd=el("h4","","Now in the rooms");box.replaceChildren(hd);
 sec.querySelectorAll(".room").forEach(r=>{{const a=r.querySelector(".s.now")||r.querySelector(".s:not(.past)");if(!a)return;const on=a.classList.contains("now");
-const b=el("button");b.append(el("span","rn",r.dataset.r));const d=el("span","tt");d.append(el("span","tm"+(on?" on":""),on?"In corso, fino alle "+hm(a.dataset.e):"Alle "+hm(a.dataset.s)),a.querySelector("h3").textContent);b.append(d);
-b.onclick=()=>{{room=r.dataset.r;pick(sec,room);a.scrollIntoView({{behavior:"smooth"}})}};box.append(b)}});if(!sec.querySelector(".s.now"))hd.textContent="A seguire nelle sale";box.hidden=box.children.length<2}}
+const b=el("button");b.append(el("span","rn",r.dataset.r));const d=el("span","tt");d.append(el("span","tm"+(on?" on":""),on?"Live now, until "+hm(a.dataset.e):"At "+hm(a.dataset.s)),a.querySelector("h3").textContent);b.append(d);
+b.onclick=()=>{{room=r.dataset.r;pick(sec,room);a.scrollIntoView({{behavior:"smooth"}})}};box.append(b)}});if(!sec.querySelector(".s.now"))hd.textContent="Up next in the rooms";box.hidden=box.children.length<2}}
 function tick(){{const n=Date.now()/1000;document.querySelectorAll(".s").forEach(a=>{{a.classList.toggle("now",n>=a.dataset.s&&n<a.dataset.e);a.classList.toggle("past",n>=a.dataset.e)}});document.querySelectorAll(".room").forEach(lab);nowBox()}}
 tick();setInterval(tick,60000);
 if(td)show(td.dataset.d);else show(get("wa-day")||0);
