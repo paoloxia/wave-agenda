@@ -92,7 +92,6 @@ def row(s):
 
 
 def page(data):
-    now = datetime.now(CEST)
     tabs, panes = [], []
     for i, (day, label) in enumerate(DAYS):
         tabs.append(f'<button data-d="{i}" data-day="{day}"{" class=on" if i == 0 else ""}>{label}</button>')
@@ -120,7 +119,6 @@ body{{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 "Funnel Sans",
 header{{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line)}}
 .bar{{max-width:1440px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}}
 h1{{display:flex;align-items:center;gap:12px;margin:0;flex:1}}h1 .logo{{height:28px;width:auto}}h1 .at{{height:14px;width:auto;fill:var(--mut)}}
-.upd{{color:var(--mut);font-size:12px;margin:0;white-space:nowrap}}
 nav{{display:flex;border:1px solid var(--line);border-radius:4px;padding:3px}}
 nav button{{font:inherit;font-weight:600;font-size:15px;min-height:42px;padding:0 18px;border:0;background:none;color:var(--fg);border-radius:2px;cursor:pointer}}
 nav button.on{{background:var(--fg);color:var(--bg)}}nav button.on::after{{content:"";display:block;height:2px;background:var(--acc);margin:-4px 8px 0}}
@@ -164,7 +162,7 @@ body:not(.q) .room.shut .s.past{{display:none}}body.q .fold,body.q .now-box{{dis
 .grp{{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}}.grp.g1{{grid-template-columns:1fr}}.grp h2 .dt{{height:22px}}}}
 @media (max-width:600px){{.jump button{{flex:1 1 auto;padding:0 10px;font-size:14px}}nav{{flex:1 1 100%}}nav button{{flex:1;padding:0 8px}}h1 .logo{{height:24px}}h1 .at{{height:12px}}}}
 </style></head><body>
-<header><div class="bar"><h1><img class="logo" src="{LOGO}" alt="Wave by Vento">{display("Agenda", "at")}</h1><p class="upd">Updated {now:%H:%M}</p><nav aria-label="Day">{"".join(tabs)}</nav></div></header>
+<header><div class="bar"><h1><img class="logo" src="{LOGO}" alt="Wave by Vento">{display("Agenda", "at")}</h1><nav aria-label="Day">{"".join(tabs)}</nav></div></header>
 <main><input id="q" type="search" aria-label="Search" placeholder="Search session, speaker or company">{"".join(panes)}<p class="empty" id="none">No results.</p></main>
 <script>
 const B=[...document.querySelectorAll("nav button")],S=[...document.querySelectorAll("main section")],H=document.querySelector("header");
